@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Widevine s167 Race Condition Detector</title>
+    <style>
+        :root {
+            --bg: #0f1117;
+            --card-bg: #1a1d24;
+            --border: #2a2e38;
+            --text: #e4e6eb;
+            --accent: #5865f2;
+        }
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 600px;
+            width: 100%;
+        }
+        .card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        h1 {
+            font-size: 1.5rem;
+            margin-top: 0;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .subtitle {
+            color: #8b8f99;
+            font-size: 0.9rem;
+            margin-bottom: 0;
+        }
+        .status-box {
+            font-size: 1.2rem;
+            font-weight: bold;
+            text-align: center;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+            background: #000;
+            transition: all 0.3s ease;
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--accent);
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .json-viewer {
+            background: #000;
+            border-radius: 8px;
+            padding: 16px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.85rem;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            color: #00ff00;
+            border: 1px solid var(--border);
+        }
+        .json-key { color: #ff9b9b; }
+        .json-string { color: #a5d6ff; }
+        .json-number { color: #79c0ff; }
+        .btn {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            width: 100%;
+            transition: background 0.2s;
+        }
+        .btn:hover {
+            background: #4752c4;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="card">
+        <h1>🛡️ Widevine s167 Detector</h1>
+        <p class="subtitle">Эмуляция FingerprintJS Race Condition для выявления спуфинг-ботов.</p>
+        
+        <div id="status" class="status-box">
+            <span class="loader"></span> Идет проверка CDM (до 5 сек.)...
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>Технические детали (window.QQ)</h3>
+        <div id="json-display" class="json-viewer">Ожидание данных...</div>
+    </div>
+
+    <button class="btn" onclick="runTest()">🔄 Запустить заново</button>
+</div>
+
+<script>
+    function highlightJson(obj) {
+        let json = JSON.stringify(obj, null, 4);
+        // Простая подсветка синтаксиса
+        json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
+            let cls = 'json-number';
+            if (/^"/.test(match)) {
+                if (/:$/.test(match)) {
+                    cls = 'json-key';
+                } else {
+                    cls = 'json-string';
+                }
+            } else if (/true|false/.test(match)) {
+                cls = 'json-boolean';
+            } else if (/null/.test(match)) {
+                cls = 'json-null';
+            }
+            return '<span class="' + cls + '">' + match + '</span>';
+        });
+    }
+
+    async function runTest() {
+        document.getElementById('status').innerHTML = '<span class="loader"></span> Идет проверка CDM (до 5 сек.)...';
+        document.getElementById('status').style.color = '#fff';
+        document.getElementById('json-display').textContent = 'Ожидание данных...';
+
+        // Твой оригинальный скрипт
+        const script = `(async () => {
+            const KEY_SYSTEM = "com.widevine.alpha";
+            const CONFIG = [{ initDataTypes: ["cenc"], audioCapabilities: [{ contentType: 'audio/mp4;codecs="mp4a.40.2"', robustness: "SW_SECURE_CRYPTO" }] }];
+            const INIT_DATA = "AAAARHBzc2gAAAAA7e+LqXnWSs6jyCfc1R0h7QAAACQIARIBMRoNd2lkZXZpbmVfdGVzdCIKMjAxNV90ZWFycyoCU0Q=";
+            const CERT = "CAUSxwUKwQIIAxIQFwW5F8wSBIaLBjM6L3cqjBiCtIKSBSKOAjCCAQoCggEBAJntWzsyfateJO/DtiqVtZhSCtW8yzdQPgZFuBTYdrjfQFEEQa2M462xG7iMTnJaXkqeB5UpHVhYQCOn4a8OOKkSeTkwCGELbxWMh4x+Ib/7/up34QGeHleB6KRfRiY9FOYOgFioYHrc4E+shFexN6jWfM3rM3BdmDoh+07svUoQykdJDKR+ql1DghjduvHK3jOS8T1v+2RC/THhv0CwxgTRxLpMlSCkv5fuvWCSmvzu9Vu69WTi0Ods18Vcc6CCuZYSC4NZ7c4kcHCCaA1vZ8bYLErF8xNEkKdO7DevSy8BDFnoKEPiWC8La59dsPxebt9k+9MItHEbzxJQAZyfWgkCAwEAAToUbGljZW5zZS53aWRldmluZS5jb20SgAOuNHMUtag1KX8nE4j7e7jLUnfSSYI83dHaMLkzOVEes8y96gS5RLknwSE0bv296snUE5F+bsF2oQQ4RgpQO8GVK5uk5M4PxL/CCpgIqq9L/NGcHc/N9XTMrCjRtBBBbPneiAQwHL2zNMr80NQJeEI6ZC5UYT3wr8+WykqSSdhV5Cs6cD7xdn9qm9Nta/gr52u/DLpP3lnSq8x2/rZCR7hcQx+8pSJmthn8NpeVQ/ypy727+voOGlXnVaPHvOZV+WRvWCq5z3CqCLl5+Gf2Ogsrf9s2LFvE7NVV2FvKqcWTw4PIV9Sdqrd+QLeFHd/SSZiAjjWyWOddeOrAyhb3BHMEwg2T7eTo/xxvF+YkPj89qPwXCYcOxF+6gjomPwzvofcJOxkJkoMmMzcFBDopvab5tDQsyN9UPLGhGC98X/8z8QSQ+spbJTYLdgFenFoGq47gLwDS6NWYYQSqzE3Udf2W7pzk4ybyG4PHBYV3s4cyzdq8amvtE/sNSdOKReuHpfQ=";
+
+            const b64ToBytes = (b64) => { const bin = atob(b64); const bytes = new Uint8Array(bin.length); for (let i=0; i<bin.length; i++) bytes[i] = bin.charCodeAt(i); return bytes; };
+
+            async function getWV() {
+                const access = await navigator.requestMediaKeySystemAccess(KEY_SYSTEM, CONFIG);
+                const mediaKeys = await access.createMediaKeys();
+                const session = mediaKeys.createSession();
+                return await new Promise((resolve, reject) => {
+                    const onMessage = (event) => {
+                        if (event.message.byteLength === 2) { session.update(b64ToBytes(CERT)).catch(reject); return; }
+                        const bytes = new Uint8Array(event.message); let bin = '';
+                        for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+                        resolve({ s: 0, v: btoa(bin) });
+                    };
+                    session.addEventListener("message", onMessage);
+                    setTimeout(() => reject(new Error("CDM Timeout")), 5000);
+                    session.generateRequest("cenc", b64ToBytes(INIT_DATA)).catch(reject);
+                });
+            }
+
+            // Эмулируем функцию fH из FingerprintJS
+            const V = { s: -2, v: null };
+            const startTime = performance.now();
+            let cdmTime = 0;
+
+            getWV().then(res => {
+                cdmTime = performance.now() - startTime;
+                delete V.s; delete V.v; Object.assign(V, res);
+            }).catch(err => {
+                cdmTime = performance.now() - startTime;
+                delete V.s; delete V.v;
+                Object.assign(V, { s: -5, v: null, e: err.name || String(err && err.message) });
+            });
+
+            // 1. Снимок на 50мс (именно так делает оркестратор FingerprintJS)
+            await new Promise(r => setTimeout(r, 50));
+            const snapshot50 = { ...V };
+
+            // 2. Ждем финального разрешения промиса (до 2 секунд)
+            await new Promise(r => setTimeout(r, 2000));
+            const finalResult = { ...V };
+
+            // --- АНАЛИЗ ---
+            let verdict = "UNKNOWN";
+            
+            // ПАЛЕВО 1: Снимок на 50мс уже мутировал в s:0. Это мгновенный ответ (спуфинг через Promise.resolve).
+            if (snapshot50.s === 0) {
+                verdict = "🔴 ПАЛЕВО (Спуфинг): CDM ответил быстрее 50мс! (Время: " + cdmTime.toFixed(2) + "мс). FingerprintJS увидит s:0 на холодном старте.";
+            } 
+            // ОК 1: Снимок на 50мс = -2, а финальный = 0. Идеальный реальный браузер (холодный старт).
+            else if (snapshot50.s === -2 && finalResult.s === 0) {
+                verdict = "🟢 ОК (Реальный браузер): CDM ответил за " + cdmTime.toFixed(2) + "мс. FingerprintJS успел отправить s:-2.";
+            } 
+            // ОК 2: Widevine честно отсутствует/заблокирован.
+            else if (snapshot50.s === -2 && (finalResult.s === -2 || finalResult.s === -5)) {
+                verdict = "🟡 ОК (Widevine отключен/заблокирован): FingerprintJS отправит s:-2.";
+            } 
+            // ПАЛЕВО 2: Ошибка доступа к API. Если UA это Chrome - бот спалился на кривом перехвате.
+            else if (snapshot50.s === -5 || finalResult.s === -5 || snapshot50.e || finalResult.e) {
+                verdict = "🔴 ПАЛЕВО (Сломанный API): Ошибка - " + (snapshot50.e || finalResult.e || "Unknown");
+            }
+
+            // Вывод
+            const output = {
+                "Снимок на 50мс (что видит FPJS)": snapshot50,
+                "Финальный результат (через 2с)": finalResult,
+                "Время ответа CDM (мс)": cdmTime > 0 ? cdmTime.toFixed(2) : "Не ответил (>2с)",
+                "Вердикт": verdict
+            };
+            
+            console.log("=== ПРОВЕРКА s167 RACE CONDITION ===");
+            console.log(output);
+            
+            // Сохраняем в глобальную переменную для BAS
+            window.QQ = output;
+            return output;
+        })();`;
+
+        try {
+            // Выполняем скрипт и ждем результата
+            const result = await eval(script);
+            
+            // Выводим вердикт
+            const verdictEl = document.getElementById('status');
+            
+            if (result["Вердикт"].includes("🔴")) {
+                verdictEl.style.backgroundColor = "#4a1113";
+                verdictEl.style.color = "#ff8a8a";
+            } else if (result["Вердикт"].includes("🟢")) {
+                verdictEl.style.backgroundColor = "#0a3d20";
+                verdictEl.style.color = "#86ff86";
+            } else if (result["Вердикт"].includes("🟡")) {
+                verdictEl.style.backgroundColor = "#3d370a";
+                verdictEl.style.color = "#ffe78a";
+            }
+
+            verdictEl.innerHTML = result["Вердикт"];
+            
+            // Выводим JSON
+            document.getElementById('json-display').innerHTML = highlightJson(result);
+
+        } catch (e) {
+            document.getElementById('status').innerHTML = "Критическая ошибка: " + e.message;
+            document.getElementById('status').style.color = "red";
+            console.error(e);
+        }
+    }
+
+    // Автозапуск при загрузке страницы
+    window.onload = runTest;
+</script>
+
+</body>
+</html>
