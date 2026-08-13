@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>67</title>
+<script>
+  // Initialize the agent at application startup.
+  const fpPromise = import('https://fpjscdn.net/v4/sSkDKTbtHf2ICQc32Ldc')
+    .then(Fingerprint => Fingerprint.start())
+
+  // Get the visitor and event identifier when you need it.
+  fpPromise
+    .then(fp => fp.get())
+    .then(result => console.log(result.event_id, result.visitor_id))
+</script>
+</head>
+<body>
+    <h1>67</h1>
+</body>
+</html>
