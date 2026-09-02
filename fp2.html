@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>FP</title>
+<script>
+  // Initialize the agent at application startup.
+  const fpPromise = import('https://fingerprint.com/r4a0Rd2Xs/web/v4/b9Y07pv2XnjDfsj5yA4u')
+    .then(Fingerprint => Fingerprint.start())
+
+  // Get the visitor and event identifier when you need it.
+  fpPromise
+    .then(fp => fp.get())
+    .then(result => document.querySelector('h1').textContent = result.event_id)
+</script>
+</head>
+<body>
+    <h1>FP</h1>
+</body>
+</html>
