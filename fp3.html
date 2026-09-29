@@ -7,15 +7,12 @@
   const urlParams = new URLSearchParams(window.location.search);
   const gpuId = urlParams.get('linkedId'); 
 
-  const f_domain = "https://fingerprint.com";
-  const f_path = "/r4a0Rd2Xs/web/v4/xk7fV3oJUkbHEISt5bqE?ci=jsl/4.1.0";
-  const f_url = f_domain + f_path;
+  const domain = "https://fingerprint.com";
+  const path = "/r4a0Rd2Xs/web/v4/b9Y07pv2XnjDfsj5yA4u?ci=jsl/4.1.0";
+  const url = domain + path;
 
-  const fpPromise = import(f_url)
-    .then(module => {
-      const initFingerprint = module.default;
-      return initFingerprint();
-    });
+  const fpPromise = import(url)
+    .then(Fingerprint => Fingerprint.start())
 
   fpPromise
     .then(fp => {
@@ -23,7 +20,6 @@
       if (gpuId) {
         options.linkedId = gpuId;
       }
-      
       return fp.get(options);
     })
     .then(result => console.log(result.event_id, result.visitor_id))
