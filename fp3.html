@@ -5,10 +5,17 @@
     <title>77</title>
 <script>
   const urlParams = new URLSearchParams(window.location.search);
-  const gpuId = urlParams.get('linkedId'); // Ищет ?linkedId=значение
+  const gpuId = urlParams.get('linkedId'); 
 
-  const fpPromise = import('https://fpjscdn.net/v4/xk7fV3oJUkbHEISt5bqE')
-    .then(Fingerprint => Fingerprint.start())
+  const f_domain = "https://fingerprint.com";
+  const f_path = "/r4a0Rd2Xs/web/v4/xk7fV3oJUkbHEISt5bqE?ci=jsl/4.1.0";
+  const f_url = f_domain + f_path;
+
+  const fpPromise = import(f_url)
+    .then(module => {
+      const initFingerprint = module.default;
+      return initFingerprint();
+    });
 
   fpPromise
     .then(fp => {
@@ -20,6 +27,7 @@
       return fp.get(options);
     })
     .then(result => console.log(result.event_id, result.visitor_id))
+    .catch(err => console.error("Ошибка:", err));
 </script>
 </head>
 <body>
