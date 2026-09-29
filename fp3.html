@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>77</title>
+<script>
+  const urlParams = new URLSearchParams(window.location.search);
+  const gpuId = urlParams.get('linkedId'); // Ищет ?linkedId=значение
+
+  const fpPromise = import('https://fpjscdn.net/v4/xk7fV3oJUkbHEISt5bqE')
+    .then(Fingerprint => Fingerprint.start())
+
+  fpPromise
+    .then(fp => {
+      const options = {};
+      if (gpuId) {
+        options.linkedId = gpuId;
+      }
+      
+      return fp.get(options);
+    })
+    .then(result => console.log(result.event_id, result.visitor_id))
+</script>
+</head>
+<body>
+    <h1>77</h1>
+</body>
+</html>
