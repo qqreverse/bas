@@ -4,8 +4,17 @@
     <meta charset="UTF-8">
     <title>77</title>
 <script>
-  const urlParams = new URLSearchParams(window.location.search);
-  const gpuId = urlParams.get('linkedId'); // Ищет ?linkedId=значение
+  function getGraphicsCard() {
+    const canvas = document.createElement('canvas');
+    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+    if (!gl) return "Unknown";
+    const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+    if (!debugInfo) return "Unknown";
+    return gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
+  }
+  const getGpuId = (str) => (str?.match(/\((0x[0-9a-fA-F]+)\)/) || [])[1] || null;
+  const gpu = getGraphicsCard();
+  const gpuId = getGpuId(gpu);
 
   const fpPromise = import('https://fpjscdn.net/v4/xk7fV3oJUkbHEISt5bqE')
     .then(Fingerprint => Fingerprint.start())
@@ -13,10 +22,7 @@
   fpPromise
     .then(fp => {
       const options = {};
-      if (gpuId) {
-        options.linkedId = gpuId;
-      }
-      
+      if (gpuId) options.linkedId = gpuId;
       return fp.get(options);
     })
     .then(result => console.log(result.event_id, result.visitor_id))
