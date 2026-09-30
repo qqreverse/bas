@@ -8,11 +8,39 @@
   const gpuId = urlParams.get('linkedId'); 
 
   const domain = "https://fingerprint.com";
-  const path = "/r4a0Rd2Xs/web/v4/b9Y07pv2XnjDfsj5yA4u?ci=jsl/4.1.0";
-  const url = domain + path;
+  const myProxyHash = "r4a0Rd2Xs";        
+  const mySecretHash = "xk7fV3oJUkbHEISt5bqE"; 
 
-  const fpPromise = import(url)
-    .then(Fingerprint => Fingerprint.start())
+  const endpointUrl = domain + "/" + myProxyHash + "/";
+  const scriptUrl = domain + "/" + myProxyHash + "/web/v4/" + mySecretHash + "?ci=jsl/4.1.0";
+
+  const fpPromise = import(scriptUrl)
+    .then(Fingerprint => Fingerprint.start({
+      region: "us",
+      endpoints: endpointUrl,
+      cache: {
+        storage: "agent",
+        duration: "optimize-cost"
+      },
+      integrationInfo: [
+        "react-sdk/3.0.0/next/16.2.12"
+      ],
+      ldi: {
+        attempts: [
+          {
+            url: scriptUrl,
+            startedAt: new Date(),
+            finishedAt: new Date()
+          }
+        ],
+        visibilityStates: [
+          {
+            time: new Date(),
+            state: "visible"
+          }
+        ]
+      }
+    }));
 
   fpPromise
     .then(fp => {
@@ -23,7 +51,7 @@
       return fp.get(options);
     })
     .then(result => console.log(result.event_id, result.visitor_id))
-    .catch(err => console.error("Ошибка:", err));
+    .catch(err => console.error("Ошибка Fingerprint:", err));
 </script>
 </head>
 <body>
