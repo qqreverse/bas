@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>77</title>
+  <script>
+    try {
+      const Fingerprint = await import('https://fpjscdn.net/v4/ePJVzMrhzHLJJfMQIYDR');
+      const fp = await Fingerprint.start();
+      const result = await fp.get();
+      console.log(result.event_id, result.visitor_id);
+      document.querySelector('h1').textContent = `suspect_score:${result.suspect_score} | event_id:${result.event_id}`
+    } catch (error) {
+      console.error('Ошибка Fingerprint:', error);
+    }
+
+  </script>
+</head>
+
+<body>
+  <h1>q</h1>
+</body>
+
+</html>
