@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Проверка браузера</title>
+    <style>
+        body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #f5f5f5; }
+        h1 { font-size: 2rem; color: #333; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        
+        /* Стили для красного экрана */
+        body.alert { background: #d93025; }
+        body.alert h1 { background: #ffebee; color: #b71c1c; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+    </style>
+</head>
+<body>
+
+    <h1 id="result">Определяем данные...</h1>
+
+    <script>
+        // Текущая стабильная версия на ноябрь 2026 года
+        const LAST_STABLE_VERSION = 153;
+
+        // 1. Извлекаем мажорную версию Chrome
+        const chromeMatch = navigator.userAgent.match(/Chrome\/([0-9]+)\./);
+        const chromeVersion = chromeMatch ? parseInt(chromeMatch[1], 10) : 0;
+        const versionText = chromeVersion ? chromeVersion : "Не определен";
+
+        // 2. Проверяем наличие свойства в прототипе
+        const hasTopics = 'browsingTopics' in Document.prototype;
+
+        // 3. Выводим точный текст в h1
+        document.getElementById('result').textContent = `Chrome: ${versionText} | browsingTopics: ${hasTopics}`;
+
+        // 4. Красим в красный, если свойство на месте И версия >= стабильной
+        if (hasTopics && chromeVersion >= LAST_STABLE_VERSION) {
+            document.body.classList.add('alert');
+        }
+    </script>
+
+</body>
+</html>
