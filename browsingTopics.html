@@ -4,8 +4,25 @@
     <meta charset="UTF-8">
     <title>Проверка браузера</title>
     <style>
-        body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #f5f5f5; }
-        h1 { font-size: 2rem; color: #333; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        body { 
+            font-family: sans-serif; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh; 
+            margin: 0; 
+            background: #f5f5f5; 
+            transition: background 0.3s; 
+        }
+        h1 { 
+            font-size: 1.6rem; 
+            color: #333; 
+            padding: 20px 40px; 
+            background: white; 
+            border-radius: 8px; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1); 
+            text-align: center; 
+        }
         
         /* Стили для красного экрана */
         body.alert { background: #d93025; }
@@ -14,27 +31,109 @@
 </head>
 <body>
 
-    <h1 id="result">Определяем данные...</h1>
+    <h1 id="result">Анализ...</h1>
 
     <script>
         // Текущая стабильная версия на ноябрь 2026 года
         const LAST_STABLE_VERSION = 153;
 
-        // 1. Извлекаем мажорную версию Chrome
-        const chromeMatch = navigator.userAgent.match(/Chrome\/([0-9]+)\./);
-        const chromeVersion = chromeMatch ? parseInt(chromeMatch[1], 10) : 0;
-        const versionText = chromeVersion ? chromeVersion : "Не определен";
+        /**
+         * Определяет точную модель Chromium-браузера и выявляет форки.
+         * @returns {Promise<{isPure: boolean, version: number, label: string}>}
+         */
+        async function getChromeIdentity() {
+            const uad = navigator.userAgentData;
+            const ua = navigator.userAgent;
 
-        // 2. Проверяем наличие свойства в прототипе
-        const hasTopics = 'browsingTopics' in Document.prototype;
+            let isChromium = false;
+            let version = 0;
+            let label = "Unknown";
+            let isPure = false;
 
-        // 3. Выводим точный текст в h1
-        document.getElementById('result').textContent = `Chrome: ${versionText} | browsingTopics: ${hasTopics}`;
+            // 1. Проверка через Client Hints
+            if (uad && Array.isArray(uad.brands)) {
+                const chromiumBrand = uad.brands.find(b => b.brand === "Chromium");
+                const hasChromeBrand = uad.brands.some(b => b.brand === "Google Chrome");
+                
+                if (chromiumBrand) {
+                    isChromium = true;
+                    version = parseInt(chromiumBrand.version, 10);
+                    label = hasChromeBrand ? "Google Chrome" : "Chromium";
 
-        // 4. Красим в красный, если свойство на месте И версия >= стабильной
-        if (hasTopics && chromeVersion >= LAST_STABLE_VERSION) {
-            document.body.classList.add('alert');
+                    // Проверяем на коммерческие форки в брендах
+                    for (const b of uad.brands) {
+                        const name = b.brand;
+                        if (name.includes("Edge") || name.includes("Microsoft")) { label = "Edge"; break; }
+                        if (name.includes("Opera") || name.includes("OPR")) { label = "Opera"; break; }
+                        if (name.includes("Brave")) { label = "Brave"; break; }
+                        if (name.includes("Yandex") || name.includes("YaBrowser")) { label = "Yandex"; break; }
+                        if (name.includes("Vivaldi")) { label = "Vivaldi"; break; }
+                    }
+                }
+            }
+
+            // 2. Резервный парсинг User-Agent (если Client Hints недоступны)
+            const chromeMatch = ua.match(/Chrome\/([0-9]+)\./);
+            if (chromeMatch) {
+                if (!isChromium) {
+                    version = parseInt(chromeMatch, 10);
+                    label = ua.includes("HeadlessChrome") ? "Chromium" : "Google Chrome";
+                }
+
+                if (/YaBrowser|Yowser/i.test(ua)) label = "Yandex";
+                else if (/Edg\//i.test(ua)) label = "Edge";
+                else if (/OPR\/|Opera/i.test(ua)) label = "Opera";
+                else if (/Vivaldi/i.test(ua)) label = "Vivaldi";
+                else if (/Atom/i.test(ua)) label = "Atom";
+                else if (/Avast/i.test(ua)) label = "Avast";
+
+                // Проверка на скрытый Brave (API + CreepJS паттерн усеченной версии)
+                const isBraveAPI = !!(navigator.brave && typeof navigator.brave.isBrave === 'function');
+                let isBraveEntropy = false;
+                if (uad && typeof uad.getHighEntropyValues === 'function') {
+                    try {
+                        const hints = await uad.getHighEntropyValues(["uaFullVersion"]);
+                        if (hints?.uaFullVersion && hints.uaFullVersion.endsWith(".0.0.0")) {
+                            isBraveEntropy = true;
+                        }
+                    } catch(e) {}
+                }
+
+                if (label === "Brave" || isBraveAPI || isBraveEntropy) {
+                    label = "Brave";
+                }
+            }
+
+            // Если не Chromium
+            if (!isChromium && !chromeMatch) {
+                if (ua.includes("Firefox")) label = "Firefox";
+                else if (ua.includes("Safari")) label = "Safari";
+            }
+
+            // Истинный чистый Chrome или Chromium (без форков)
+            if (isChromium && (label === "Google Chrome" || label === "Chromium")) {
+                isPure = true;
+            }
+
+            return { isPure, version, label };
         }
+
+        // Запуск
+        async function runChecker() {
+            const browser = await getChromeIdentity();
+            const hasTopics = 'browsingTopics' in Document.prototype;
+
+            // Вывод в формате: Название | v156 | browsingTopics: false
+            const versionStr = browser.version ? `v${browser.version}` : 'vunknown';
+            document.getElementById('result').textContent = `${browser.label} | ${versionStr} | browsingTopics: ${hasTopics}`;
+
+            // Условие для алерта: только оригинальный Chrome/Chromium, фича на месте, версия подходит
+            if (browser.isPure && hasTopics && browser.version >= LAST_STABLE_VERSION) {
+                document.body.classList.add('alert');
+            }
+        }
+
+        runChecker();
     </script>
 
 </body>
